@@ -16,7 +16,7 @@ fun main () = runBlocking {
 
     try {
         ServerSocket(port).use { socket ->
-            println("Escuchando en $port")
+            println("Escuchando en $port...")
 
             while (true) {
                 val clientSocket = socket.accept()
@@ -35,38 +35,52 @@ fun main () = runBlocking {
 }
 
 fun atendreClient(socket: Socket) {
-    socket.use { client ->
-        var vidas = 10
-        val resultado = Random.nextInt(1,101)
-        var jugando = true
+    try {
+        socket.use { client ->
+            var vidas = 10
+            val resultado = Random.nextInt(1, 101)
+            var jugando = true
 
-        val reader = BufferedReader(InputStreamReader(client.getInputStream()))
-        val writer = PrintWriter(OutputStreamWriter(client.getOutputStream()))
+            val reader = BufferedReader(InputStreamReader(client.getInputStream()))
+            val writer = PrintWriter(OutputStreamWriter(client.getOutputStream()), true)
 
-        writer.println("Adivina MIN: ${resultado - Random.nextInt(20, resultado)}, MAX: ${resultado + Random.nextInt(resultado, 20)}")
+            writer.println("Adivina MIN: ${resultado - 20}, MAX: ${resultado + 20}")
 
-        val numero = reader.readLine().toInt()
+            while (jugando && vidas > 0) {
+                val texto = reader.readLine() ?: break
 
-        while (jugando) {
-            if (vidas == 0) {
-                writer.println("Haz perdido")
-                jugando = false
-            }
-            when {
-                numero > resultado -> {
-                    writer.println("Numero mas grande")
-                    vidas--
+                if (texto.isBlank()) {
+                    writer.println("Entrada vacía. Introduce un número entero.")
+                    continue
                 }
-                numero < resultado -> {
-                    writer.println("Numero mas pequeño")
+
+                try {
+                    val numero = texto.toInt()
+
+                    if (numero == resultado) {
+                        writer.println("¡haz acertado!! El número era $resultado")
+                        jugando = false
+                        continue
+                    }
                     vidas--
-                } else -> {
-                    writer.println("haz acertado!!")
-                    jugando = false
+                    val respuesta = when {
+                        vidas == 0 -> {
+                            jugando = false
+                            "Te has quedado sin vidas. Has perdido. El número era $resultado"
+                        }
+                        numero > resultado -> "[Vidas: $vidas] El numero es mas pequeño"
+                        else -> "[Vidas: $vidas] El numero es mas grande"
+                    }
+
+                    writer.println(respuesta)
+
+                } catch (e: NumberFormatException) {
+                    writer.println("Entrada no válida. Introduce un número entero.")
                 }
 
             }
         }
-
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
